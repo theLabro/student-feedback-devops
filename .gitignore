@@ -4,3 +4,6 @@ target/
 *.log
 *.iml
 backups/
+docs/
+design-qa.md
+evidence/

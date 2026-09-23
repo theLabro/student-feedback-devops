@@ -11,6 +11,16 @@ import java.util.UUID;
 @WebServlet(urlPatterns = {"/", "/feedback", "/health", "/assets/*"})
 public class PortalServlet extends HttpServlet {
     private final FeedbackStore store = new FeedbackStore();
+    private final String revision = loadRevision();
+
+    private static String loadRevision() {
+        var properties = new java.util.Properties();
+        try (var stream = PortalServlet.class.getResourceAsStream("/build.properties")) {
+            if (stream != null) properties.load(stream);
+        } catch (IOException e) { return "unknown"; }
+        String value = properties.getProperty("revision", "local");
+        return value.matches("[a-zA-Z0-9._-]{1,80}") ? value : "unknown";
+    }
 
     @Override protected void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
         res.setHeader("Cache-Control", "no-store");
@@ -29,7 +39,7 @@ public class PortalServlet extends HttpServlet {
         }
         if ("/health".equals(req.getServletPath())) {
             res.setContentType("application/json;charset=UTF-8");
-            res.getWriter().print("{\"status\":\"UP\",\"application\":\"student-feedback\",\"version\":\"1.0.0\"}");
+            res.getWriter().print("{\"status\":\"UP\",\"application\":\"student-feedback\",\"version\":\"1.0.0\",\"revision\":\"" + revision + "\"}");
             return;
         }
         if (!"/".equals(req.getServletPath()) && !"/feedback".equals(req.getServletPath())) {

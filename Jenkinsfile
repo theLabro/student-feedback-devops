@@ -42,7 +42,7 @@ pipeline {
         }
         stage('Verify') {
             steps {
-                sh 'python3 scripts/verify-health.py "intentional-rollback-demo" > evidence/health-check.json'
+                sh 'python3 scripts/verify-health.py "$REVISION" > evidence/health-check.json'
                 sh 'cat evidence/health-check.json'
                 sh 'sudo -n -u tomcat /usr/local/sbin/student-feedback-release accept'
                 script { deploymentStarted = false }

@@ -10,7 +10,7 @@ class FeedbackTest {
     }
     @Test void trimsValidInput() {
         var item = feedback(" Asha ", " asha@example.com ", " Great mentoring ", 5);
-        assertEquals("Asha", item.name()); assertEquals("asha@example.com", item.email());
+        assertEquals("Intentional demo failure", item.name()); assertEquals("asha@example.com", item.email());
         assertEquals("Great mentoring", item.message());
     }
     @Test void rejectsMissingFields() {

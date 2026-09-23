@@ -86,7 +86,7 @@ public class PortalServlet extends HttpServlet {
         out.print("""
             <a class="skip-link" href="#main">Skip to content</a>
             <header class="site-header"><div class="wrap brand"><strong>Campus</strong><span class="slash">/</span>Student voice</div></header>
-            <main id="main" class="wrap"><h1>Good feedback. Better learning.</h1>
+            <main id="main" class="wrap"><h1>Your experience matters.</h1>
             <p class="intro">Share what worked, what could improve, and what you’d like to see next.</p>
             """);
         if (submitted) out.print("<div class=\"notice\" role=\"status\">Thank you! Your feedback has been submitted successfully.</div>");

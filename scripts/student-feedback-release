@@ -1,0 +1,60 @@
+#!/bin/bash
+# Installed root-owned. Jenkins can invoke only these fixed operations as tomcat.
+set -euo pipefail
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+source_war=/var/lib/jenkins/workspace/student-feedback-devops/target/student-feedback.war
+live_war=/var/lib/tomcat10/webapps/student-feedback.war
+state=/var/lib/tomcat10/student-feedback-releases
+exec 9>"$state/release.lock"
+flock -x 9
+
+revision_of() {
+    python3 - "$1" <<'PY'
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1]) as war:
+    try:
+        text = war.read('WEB-INF/classes/build.properties').decode()
+        revision = next(line.split('=', 1)[1].strip() for line in text.splitlines() if line.startswith('revision='))
+    except KeyError:
+        revision = 'local'
+    print(revision)
+PY
+}
+
+case "${1:-}" in
+    deploy)
+        test "$#" = 1
+        if test -e "$state/pending"; then echo 'Unfinished deployment: recover it before deploying again.' >&2; exit 1; fi
+        test -f "$source_war" && test ! -L "$source_war"
+        unzip -tq "$source_war"
+        if test -f "$live_war"; then
+            /usr/local/lib/student-feedback/verify-health.py "$(revision_of "$live_war")"
+            cp "$live_war" "$state/previous.war"
+        else
+            echo 'A healthy baseline WAR is required for rollback.' >&2; exit 1
+        fi
+        cp "$source_war" "$state/candidate.war"
+        touch "$state/pending"
+        install -m 0644 "$state/candidate.war" /var/lib/tomcat10/webapps/.student-feedback.war.next
+        mv -f /var/lib/tomcat10/webapps/.student-feedback.war.next "$live_war"
+        echo "Deployed revision $(revision_of "$live_war")"
+        ;;
+    accept)
+        test "$#" = 1
+        test -f "$state/pending"
+        /usr/local/lib/student-feedback/verify-health.py "$(revision_of "$state/candidate.war")"
+        rm "$state/pending"
+        echo 'Deployment verified and accepted. Previous WAR retained for recovery.'
+        ;;
+    rollback)
+        test "$#" = 1
+        if test ! -f "$state/pending"; then echo 'No pending deployment to roll back.'; exit 0; fi
+        test -s "$state/previous.war"
+        install -m 0644 "$state/previous.war" /var/lib/tomcat10/webapps/.student-feedback.war.next
+        mv -f /var/lib/tomcat10/webapps/.student-feedback.war.next "$live_war"
+        /usr/local/lib/student-feedback/verify-health.py "$(revision_of "$state/previous.war")"
+        rm "$state/pending"
+        echo 'Rollback verified: restored previous healthy WAR.'
+        ;;
+    *) echo 'Usage: student-feedback-release deploy|accept|rollback' >&2; exit 2 ;;
+esac

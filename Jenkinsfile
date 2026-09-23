@@ -1,3 +1,4 @@
+def deploymentStarted = false
 pipeline {
     agent any
     options {
@@ -11,12 +12,12 @@ pipeline {
     environment {
         JAVA_HOME = '/usr/lib/jvm/java-17-openjdk-amd64'
         PATH = "/usr/lib/jvm/java-17-openjdk-amd64/bin:${env.PATH}"
-        DEPLOYMENT_STARTED = 'false'
     }
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                checkout scm 
+                dir('evidence') { deleteDir() }
                 script { env.REVISION = sh(script: 'git rev-parse HEAD', returnStdout: true).trim() }
                 sh 'mkdir -p evidence; git log -1 --format=fuller > evidence/commit.txt'
             }
@@ -35,7 +36,7 @@ pipeline {
         stage('Archive') { steps { archiveArtifacts artifacts: 'target/student-feedback.war', fingerprint: true } }
         stage('Deploy') {
             steps {
-                script { env.DEPLOYMENT_STARTED = 'true' }
+                script { deploymentStarted = true }
                 sh 'sudo -n -u tomcat /usr/local/sbin/student-feedback-release deploy'
             }
         }
@@ -44,14 +45,14 @@ pipeline {
                 sh 'python3 scripts/verify-health.py "$REVISION" > evidence/health-check.json'
                 sh 'cat evidence/health-check.json'
                 sh 'sudo -n -u tomcat /usr/local/sbin/student-feedback-release accept'
-                script { env.DEPLOYMENT_STARTED = 'false' }
+                script { deploymentStarted = false }
             }
         }
     }
     post {
         unsuccessful {
             script {
-                if (env.DEPLOYMENT_STARTED == 'true') {
+                if (deploymentStarted) {
                     sh 'sudo -n -u tomcat /usr/local/sbin/student-feedback-release rollback'
                 }
             }
